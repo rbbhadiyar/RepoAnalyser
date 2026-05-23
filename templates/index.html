@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitHub Repo Analyzer</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <!-- ── HEADER ── -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">🔍</span>
+        <span class="logo-text">RepoAnalyzer <span class="logo-ai">AI</span></span>
+      </div>
+      <p class="header-sub">Understand any GitHub repository in minutes using multi-agent AI</p>
+    </div>
+  </header>
+
+  <!-- ── HERO / INPUT ── -->
+  <main class="main">
+    <section class="input-section" id="inputSection">
+      <div class="card input-card">
+        <h2 class="card-title">Analyze a Repository</h2>
+        <p class="card-desc">Paste any public or private GitHub URL. The AI agents will clone, read, and explain the entire codebase.</p>
+
+        <div class="form-group">
+          <label for="repoUrl">GitHub Repository URL</label>
+          <div class="input-row">
+            <span class="input-icon">🔗</span>
+            <input type="url" id="repoUrl" placeholder="https://github.com/owner/repository" autocomplete="off" />
+          </div>
+        </div>
+
+        <button class="btn-analyze" id="analyzeBtn" onclick="startAnalysis()">
+          <span class="btn-icon">🚀</span> Analyze Repository
+        </button>
+
+        <div class="example-repos">
+          <span class="example-label">Try an example:</span>
+          <button class="example-chip" onclick="setExample('https://github.com/pallets/flask')">pallets/flask</button>
+          <button class="example-chip" onclick="setExample('https://github.com/tiangolo/fastapi')">tiangolo/fastapi</button>
+          <button class="example-chip" onclick="setExample('https://github.com/expressjs/express')">expressjs/express</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── PROGRESS ── -->
+    <section class="progress-section hidden" id="progressSection">
+      <div class="card progress-card">
+        <div class="progress-header">
+          <div class="spinner"></div>
+          <div>
+            <h3 id="progressTitle">Initializing agents...</h3>
+            <p id="progressRepo" class="progress-repo"></p>
+          </div>
+        </div>
+
+        <div class="steps">
+          <div class="step" id="step1"><span class="step-dot"></span><span class="step-label">📥 Clone Repository</span></div>
+          <div class="step" id="step2"><span class="step-dot"></span><span class="step-label">📂 Parse Code Files</span></div>
+          <div class="step" id="step3"><span class="step-dot"></span><span class="step-label">🎯 Repo Manager Triage</span></div>
+          <div class="step" id="step4"><span class="step-dot"></span><span class="step-label">📖 Code Analyst Reading</span></div>
+          <div class="step" id="step5"><span class="step-dot"></span><span class="step-label">🏗️ Architecture Mapping</span></div>
+          <div class="step" id="step6"><span class="step-dot"></span><span class="step-label">🧾 Documentation Writing</span></div>
+          <div class="step" id="step7"><span class="step-dot"></span><span class="step-label">✅ Report Ready</span></div>
+        </div>
+
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <p class="progress-msg" id="progressMsg">Starting...</p>
+      </div>
+    </section>
+
+    <!-- ── RESULTS ── -->
+    <section class="results-section hidden" id="resultsSection">
+
+      <!-- Stats bar -->
+      <div class="stats-bar" id="statsBar"></div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" data-tab="overview" onclick="switchTab('overview')">📌 Overview</button>
+        <button class="tab" data-tab="architecture" onclick="switchTab('architecture')">🧱 Architecture</button>
+        <button class="tab" data-tab="folders" onclick="switchTab('folders')">📂 Folders</button>
+        <button class="tab" data-tab="modules" onclick="switchTab('modules')">⚙️ Modules</button>
+        <button class="tab" data-tab="dataflow" onclick="switchTab('dataflow')">🔄 Data Flow</button>
+        <button class="tab" data-tab="readme" onclick="switchTab('readme')">📘 README</button>
+        <button class="tab" data-tab="howitworks" onclick="switchTab('howitworks')">🧠 How It Works</button>
+      </div>
+
+      <div class="tab-content">
+        <div class="tab-pane active" id="tab-overview">
+          <div class="section-header"><h3>📌 What the Project Does</h3></div>
+          <div class="content-body" id="content-overview"></div>
+        </div>
+        <div class="tab-pane" id="tab-architecture">
+          <div class="section-header"><h3>🧱 System Architecture Overview</h3></div>
+          <div class="content-body" id="content-architecture"></div>
+        </div>
+        <div class="tab-pane" id="tab-folders">
+          <div class="section-header"><h3>📂 Folder-by-Folder Explanation</h3></div>
+          <div class="folder-tree" id="content-folders-tree"></div>
+          <div class="content-body" id="content-folders"></div>
+        </div>
+        <div class="tab-pane" id="tab-modules">
+          <div class="section-header"><h3>⚙️ Key Modules Breakdown</h3></div>
+          <div class="content-body" id="content-modules"></div>
+        </div>
+        <div class="tab-pane" id="tab-dataflow">
+          <div class="section-header"><h3>🔄 Data Flow Explanation</h3></div>
+          <div class="content-body" id="content-dataflow"></div>
+        </div>
+        <div class="tab-pane" id="tab-readme">
+          <div class="section-header">
+            <h3>📘 Auto-Generated README</h3>
+            <button class="btn-copy" onclick="copySection('content-readme')">📋 Copy</button>
+          </div>
+          <div class="content-body markdown-body" id="content-readme"></div>
+        </div>
+        <div class="tab-pane" id="tab-howitworks">
+          <div class="section-header"><h3>🧠 How It Works</h3></div>
+          <div class="content-body" id="content-howitworks"></div>
+        </div>
+        <!-- Quick Start removed -->
+      </div>
+
+      <div class="result-actions">
+        <button class="btn-secondary" onclick="downloadHtmlReport()">⬇️ Download HTML Report</button>
+        <button class="btn-secondary" onclick="downloadReport()">📄 Download PDF Report</button>
+        <button class="btn-secondary" onclick="resetUI()">🔄 Analyze Another Repo</button>
+      </div>
+    </section>
+
+    <!-- ── ERROR ── -->
+    <section class="error-section hidden" id="errorSection">
+      <div class="card error-card">
+        <div class="error-icon">❌</div>
+        <h3>Analysis Failed</h3>
+        <p id="errorMsg"></p>
+        <button class="btn-secondary" onclick="resetUI()">Try Again</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- ── FOOTER ── -->
+  <footer class="footer">
+    <p>Built with CrewAI · OpenAI · Flask &nbsp;|&nbsp; Multi-Agent AI System</p>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

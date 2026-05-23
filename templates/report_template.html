@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ meta.repo_name or 'Repository Intelligence Report' }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0c0f14;
+      --bg-elevated: #121722;
+      --bg-card: #161c28;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #e8ecf4;
+      --muted: #8b95a8;
+      --accent: #5eead4;
+      --accent-dim: rgba(94, 234, 212, 0.15);
+      --warn: #fbbf24;
+      --violet: #a78bfa;
+      --radius: 14px;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: "DM Sans", system-ui, sans-serif;
+      background: radial-gradient(1200px 600px at 10% -10%, rgba(94, 234, 212, 0.08), transparent),
+        radial-gradient(900px 500px at 100% 0%, rgba(167, 139, 250, 0.06), transparent),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 48px 24px 96px;
+    }
+
+    .cover {
+      min-height: 78vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 64px 0 48px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 56px;
+    }
+
+    .eyebrow {
+      font-size: 12px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .cover h1 {
+      font-size: clamp(2rem, 5vw, 3.1rem);
+      font-weight: 700;
+      line-height: 1.12;
+      margin: 16px 0 12px;
+      letter-spacing: -0.02em;
+    }
+
+    .cover .subtitle {
+      font-size: 1.15rem;
+      color: var(--muted);
+      max-width: 52ch;
+      margin: 0 0 32px;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .meta-pill {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .meta-pill span {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .meta-pill strong {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 16px 0 0;
+    }
+
+    .badge {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--muted);
+    }
+
+    .badge.accent {
+      border-color: rgba(94, 234, 212, 0.35);
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    .toc {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px 28px;
+      margin-bottom: 56px;
+    }
+
+    .toc h2 {
+      margin: 0 0 16px;
+      font-size: 14px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .toc ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      columns: 2;
+      gap: 8px 32px;
+    }
+
+    .toc li {
+      break-inside: avoid;
+      margin-bottom: 8px;
+    }
+
+    .toc a {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .toc a:hover {
+      color: var(--accent);
+    }
+
+    section {
+      margin-bottom: 56px;
+    }
+
+    h2.section-title {
+      font-size: 13px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin: 0 0 12px;
+      font-weight: 600;
+    }
+
+    h3.block-title {
+      margin: 0 0 16px;
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    p.lead {
+      font-size: 1.05rem;
+      color: var(--muted);
+      margin: 0 0 20px;
+      max-width: 70ch;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px 26px;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .timeline {
+      position: relative;
+      padding-left: 28px;
+      margin: 0;
+    }
+
+    .timeline::before {
+      content: "";
+      position: absolute;
+      left: 8px;
+      top: 6px;
+      bottom: 6px;
+      width: 2px;
+      background: linear-gradient(var(--accent), var(--violet));
+      border-radius: 2px;
+      opacity: 0.5;
+    }
+
+    .step {
+      position: relative;
+      margin-bottom: 22px;
+      padding-left: 8px;
+    }
+
+    .step::before {
+      content: "";
+      position: absolute;
+      left: -24px;
+      top: 6px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 2px solid var(--accent);
+    }
+
+    .step h4 {
+      margin: 0 0 6px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .step p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .diagram {
+      background: linear-gradient(145deg, rgba(94, 234, 212, 0.06), rgba(167, 139, 250, 0.05));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      overflow-x: auto;
+    }
+
+    .file-tree {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 13px;
+      line-height: 1.85;
+      color: var(--muted);
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 10px;
+      padding: 18px 22px;
+      border: 1px solid var(--border);
+    }
+
+    .file-tree .root {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .file-tree .dir {
+      color: var(--violet);
+    }
+
+    .file-tree .py {
+      color: var(--accent);
+    }
+
+    .callout {
+      border-left: 3px solid var(--warn);
+      padding: 12px 18px;
+      background: rgba(251, 191, 36, 0.06);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      margin-top: 20px;
+    }
+
+    .callout strong {
+      color: var(--warn);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    code {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 13px;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 2px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+    }
+
+    .metric-card strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    @media (max-width: 720px) {
+      .grid-2,
+      .grid-3 {
+        grid-template-columns: 1fr;
+      }
+      .toc ul {
+        columns: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="cover">
+      <p class="eyebrow">Repository intelligence report</p>
+      <h1>{{ meta.repo_name or 'Repository Intelligence Report' }}</h1>
+      <p class="subtitle">Deep-dive technical narrative generated by Repo Analyzer.</p>
+      <div class="meta-grid">
+        <div class="meta-pill"><span>Repository</span><strong>{{ meta.repo_name or 'Unknown' }}</strong></div>
+        <div class="meta-pill"><span>Primary stack</span><strong>{{ meta.primary_stack or 'Code analysis' }}</strong></div>
+        <div class="meta-pill"><span>Scope analyzed</span><strong>{{ meta.file_count or 0 }} files · {{ meta.folder_count or meta.structure|length if meta.structure else 0 }} folders</strong></div>
+        <div class="meta-pill"><span>Report generated</span><strong>{{ meta.generated_date or 'N/A' }}</strong></div>
+        <div class="meta-pill"><span>Source tooling</span><strong>{{ meta.source_tooling or 'RepoAnalyzer AI' }}</strong></div>
+      </div>
+      <div class="badge-row">
+        {% for badge in meta.badges or ['Code summary','Repository analysis','Architecture','Metrics'] %}
+          <span class="badge {% if loop.first %}accent{% endif %}">{{ badge }}</span>
+        {% endfor %}
+      </div>
+    </header>
+
+    <nav class="toc" aria-label="Table of contents">
+      <h2>Contents</h2>
+      <ul>
+        <li><a href="#executive">Executive summary</a></li>
+        <li><a href="#architecture">System architecture</a></li>
+        <li><a href="#modules">Module reference</a></li>
+        <li><a href="#dataflow">End-to-end data flow</a></li>
+        <li><a href="#algorithm">Algorithm profile</a></li>
+        <li><a href="#ops">Runbook & usage</a></li>
+        <li><a href="#structure">Repository layout</a></li>
+        <li><a href="#recommendations">Recommendations</a></li>
+      </ul>
+    </nav>
+
+    <section id="executive">
+      <h2 class="section-title">01 — Executive summary</h2>
+      <h3 class="block-title">What this system does</h3>
+      <p class="lead">{{ sections.what_it_does|default('A comprehensive analysis of repository purpose, user scenarios, and key capabilities.')|safe }}</p>
+      <div class="grid-2">
+        <div class="card">
+          <strong>Problem domain</strong>
+          <p style="margin: 10px 0 0; color: var(--muted); font-size: 14px;">{{ meta.problem_domain|default('Repository intent and target problem area were inferred from the source code and architecture.') }}</p>
+        </div>
+        <div class="card">
+          <strong>Design posture</strong>
+          <p style="margin: 10px 0 0; color: var(--muted); font-size: 14px;">{{ meta.design_posture|default('The analysis separates core functionality, data flow, and system modules for clarity.') }}</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <h2 class="section-title">02 — System architecture</h2>
+      <h3 class="block-title">Layered view</h3>
+      <p class="lead">{{ sections.architecture|default('A layered architecture with clear boundaries between the client, server, and analysis engines.')|safe }}</p>
+      <div class="diagram" role="img" aria-label="Architecture diagram: browser to analysis modules">
+        <svg viewBox="0 0 640 280" width="640" height="280" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#5eead4;stop-opacity:0.35" />
+              <stop offset="100%" style="stop-color:#a78bfa;stop-opacity:0.25" />
+            </linearGradient>
+            <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <polygon points="0 0, 8 4, 0 8" fill="#5eead4" />
+            </marker>
+            <marker id="arrow2" markerWidth="8" markerHeight="8" refX="4" refY="8" orient="auto">
+              <polygon points="0 0, 8 4, 0 8" fill="#a78bfa" transform="rotate(90 4 4)" />
+            </marker>
+          </defs>
+          <rect x="20" y="30" width="140" height="56" rx="12" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.15)" />
+          <text x="90" y="62" text-anchor="middle" fill="#e8ecf4" font-family="DM Sans, sans-serif" font-size="13" font-weight="600">Browser</text>
+          <text x="90" y="78" text-anchor="middle" fill="#8b95a8" font-family="DM Sans, sans-serif" font-size="11">Upload / UI</text>
+          <path d="M 160 58 L 210 58" stroke="#5eead4" stroke-width="2" fill="none" marker-end="url(#arrow)" />
+          <rect x="210" y="22" width="200" height="72" rx="14" fill="url(#g1)" stroke="rgba(94,234,212,0.4)" />
+          <text x="310" y="50" text-anchor="middle" fill="#e8ecf4" font-family="DM Sans, sans-serif" font-size="14" font-weight="700">Analysis Service</text>
+          <text x="310" y="70" text-anchor="middle" fill="#c5cdd8" font-family="DM Sans, sans-serif" font-size="11">Routes · Conversion · Reports</text>
+          <path d="M 310 94 L 310 118" stroke="#a78bfa" stroke-width="2" fill="none" marker-end="url(#arrow2)" />
+          <rect x="130" y="130" width="180" height="110" rx="14" fill="rgba(255,255,255,0.04)" stroke="rgba(167,139,250,0.35)" />
+          <text x="220" y="158" text-anchor="middle" fill="#a78bfa" font-family="DM Sans, sans-serif" font-size="12" font-weight="700">Conversion</text>
+          <text x="220" y="178" text-anchor="middle" fill="#8b95a8" font-family="DM Sans, sans-serif" font-size="11">PDF / DOCX / TXT → text</text>
+          <rect x="330" y="130" width="180" height="110" rx="14" fill="rgba(255,255,255,0.04)" stroke="rgba(94,234,212,0.35)" />
+          <text x="420" y="158" text-anchor="middle" fill="#5eead4" font-family="DM Sans, sans-serif" font-size="12" font-weight="700">Analysis Engine</text>
+          <text x="420" y="178" text-anchor="middle" fill="#8b95a8" font-family="DM Sans, sans-serif" font-size="11">Fingerprinting · Comparison</text>
+        </svg>
+      </div>
+    </section>
+
+    <section id="modules">
+      <h2 class="section-title">03 — Module reference</h2>
+      <h3 class="block-title">Responsibility matrix</h3>
+      <p class="lead">Each file’s contract at a glance — useful for onboarding and code review.</p>
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <table>
+          <thead>
+            <tr>
+              <th>Artifact</th>
+              <th>Role</th>
+              <th>Key entrypoints</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>app.py</code></td>
+              <td>Flask application shell — HTTP, uploads, orchestration, response rendering.</td>
+              <td><code>index()</code>, <code>analyze()</code>, <code>export_html()</code></td>
+            </tr>
+            <tr>
+              <td><code>repo_utils.py</code></td>
+              <td>Repository cloning, file discovery, and structured prompt formatting.</td>
+              <td><code>clone_repo()</code>, <code>get_files()</code>, <code>get_repo_structure()</code></td>
+            </tr>
+            <tr>
+              <td><code>agents.py</code></td>
+              <td>Multi-agent analysis orchestration and prompt construction.</td>
+              <td><code>build_crew()</code>, <code>Task</code>, <code>Agent</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="dataflow">
+      <h2 class="section-title">04 — End-to-end data flow</h2>
+      <h3 class="block-title">Request lifecycle</h3>
+      <p class="lead">From user gesture to rendered report output.</p>
+      <div class="card">
+        <div class="timeline">
+          <div class="step">
+            <h4>1. Repository ingest</h4>
+            <p>The UI posts the GitHub URL to Flask, which clones the repo and discovers code files.</p>
+          </div>
+          <div class="step">
+            <h4>2. File preparation</h4>
+            <p>Source files are read, truncated if needed, and packaged into prompt-ready text chunks.</p>
+          </div>
+          <div class="step">
+            <h4>3. Multi-agent analysis</h4>
+            <p>Specialist agents triage, summarize, map architecture, and author technical documentation.</p>
+          </div>
+          <div class="step">
+            <h4>4. Report generation</h4>
+            <p>Raw agent output is parsed into report sections and rendered into polished HTML.</p>
+          </div>
+          <div class="step">
+            <h4>5. Export & review</h4>
+            <p>The final report is stored per-job and can be downloaded as HTML or reviewed in the browser.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="algorithm">
+      <h2 class="section-title">05 — Algorithm profile</h2>
+      <h3 class="block-title">Why this approach works</h3>
+      <div class="grid-2">
+        <div class="card">
+          <strong>Prompt-based analysis</strong>
+          <p style="margin: 10px 0 0; color: var(--muted); font-size: 14px;">Specialist agents separate roles so the system can produce reliable summaries and architectural narratives.</p>
+        </div>
+        <div class="card">
+          <strong>Structured extraction</strong>
+          <p style="margin: 10px 0 0; color: var(--muted); font-size: 14px;">The report parser extracts targeted sections from raw LLM output for clean, repeatable HTML rendering.</p>
+        </div>
+      </div>
+      {% if sections.algorithm %}
+      <div class="card" style="margin-top: 18px;">
+        <strong>Algorithm summary</strong>
+        <div style="margin-top: 12px; color: var(--muted); white-space: pre-wrap;">{{ sections.algorithm|safe }}</div>
+      </div>
+      {% endif %}
+      <div class="callout">
+        <strong>Analyst note:</strong> For repositories where source files use non-standard layout, the agent prompt encourages explicit module breakdowns and folder-level reasoning.
+      </div>
+    </section>
+
+    <section id="ops">
+      <h2 class="section-title">06 — Runbook</h2>
+      <h3 class="block-title">Installation & usage</h3>
+      <div class="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Step</th>
+              <th>Command / action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Clone</td>
+              <td><code>git clone &lt;repository-url&gt;</code></td>
+            </tr>
+            <tr>
+              <td>Dependencies</td>
+              <td><code>pip install -r requirements.txt</code></td>
+            </tr>
+            <tr>
+              <td>Launch</td>
+              <td><code>python app.py</code></td>
+            </tr>
+            <tr>
+              <td>Usage</td>
+              <td>Open the UI, paste a GitHub repo URL, and download the generated HTML report.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {% if sections.runbook %}
+      <div class="card">
+        <strong>Derived runbook / usage notes</strong>
+        <div style="margin-top: 12px; color: var(--muted); white-space: pre-wrap;">{{ sections.runbook|safe }}</div>
+      </div>
+      {% endif %}
+    </section>
+
+    <section id="structure">
+      <h2 class="section-title">07 — Repository layout</h2>
+      <h3 class="block-title">File tree</h3>
+      <div class="file-tree" aria-label="Repository structure">
+        <span class="root">(root)/</span><br />
+        {% for folder, files in meta.structure.items() %}
+          {% if folder != '(root)' %}
+            ├── <span class="dir">{{ folder }}</span><br />
+            {% for f in files %}
+              &nbsp;&nbsp;&nbsp;&nbsp;└── <span class="py">{{ f }}</span><br />
+            {% endfor %}
+          {% else %}
+            {% for f in files %}
+              ├── <span class="py">{{ f }}</span><br />
+            {% endfor %}
+          {% endif %}
+        {% endfor %}
+      </div>
+    </section>
+
+    <section id="recommendations">
+      <h2 class="section-title">08 — Maturity recommendations</h2>
+      <h3 class="block-title">Elevating the project</h3>
+      <div class="card">
+        <ul style="margin: 0; padding-left: 20px; color: var(--muted); font-size: 14px;">
+          <li style="margin-bottom: 10px;"><strong style="color: var(--text);">Testing:</strong> Add pytest coverage for parsing and output extraction, including edge cases and repo variations.</li>
+          <li style="margin-bottom: 10px;"><strong style="color: var(--text);">Security:</strong> Harden repository ingestion and model input handling; validate URLs and sanitize code metadata.</li>
+          <li style="margin-bottom: 10px;"><strong style="color: var(--text);">Observability:</strong> Add structured logging, request IDs, and profiling around LLM versus parsing work.</li>
+          <li style="margin-bottom: 10px;"><strong style="color: var(--text);">Packaging:</strong> Add a Dockerfile and support `gunicorn` for production deployment.</li>
+          <li><strong style="color: var(--text);">UX:</strong> Add a downloadable HTML/PDF report and visible progress states for long analyses.</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer>
+      <span>Enhanced report derived from RepoAnalyzer AI export · Content aligned to original analysis.</span>
+      <span><a href="{{ meta.repo_url or '#' }}">{{ meta.repo_url or 'Repository link unavailable' }}</a></span>
+    </footer>
+  </div>
+</body>
+</html>
