@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{ meta.repo_name or 'Repository Intelligence Report' }}</title>
+  <title>{{ meta.repo_display or meta.repo_name or 'Repository Intelligence Report' }}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -118,6 +118,14 @@
     .meta-pill strong {
       font-size: 15px;
       font-weight: 600;
+    }
+
+    .meta-pill small {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 400;
     }
 
     .badge-row {
@@ -623,7 +631,7 @@
           <li style="margin-bottom: 10px;"><strong style="color: var(--text);">Security:</strong> Harden repository ingestion and model input handling; validate URLs and sanitize code metadata.</li>
           <li style="margin-bottom: 10px;"><strong style="color: var(--text);">Observability:</strong> Add structured logging, request IDs, and profiling around LLM versus parsing work.</li>
           <li style="margin-bottom: 10px;"><strong style="color: var(--text);">Packaging:</strong> Add a Dockerfile and support `gunicorn` for production deployment.</li>
-          <li><strong style="color: var(--text);">UX:</strong> Add a downloadable HTML/PDF report and visible progress states for long analyses.</li>
+          <li><strong style="color: var(--text);">UX:</strong> Add a downloadable HTML report and visible progress states for long analyses.</li>
         </ul>
       </div>
     </section>

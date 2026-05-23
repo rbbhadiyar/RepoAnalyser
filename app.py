@@ -4,7 +4,10 @@ import queue
 import threading
 import re
 import time
+import random
 import shutil
+import html
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 from datetime import datetime
 
@@ -72,6 +75,98 @@ def _is_model_not_found_error(exc: BaseException) -> bool:
     return any(tok in text for tok in tokens)
 
 
+def _format_date(dt: datetime) -> str:
+    return dt.strftime("%d %B %Y")
+
+
+def _parse_repo_url(repo_url: str) -> tuple[str, str, str, str]:
+    if not repo_url:
+        return "", "", "Unknown project", "Repository"
+    parsed = urlparse(repo_url.strip())
+    host = (parsed.netloc or "").lower()
+    if "github.com" in host:
+        source = "GitHub"
+    elif "gitlab.com" in host:
+        source = "GitLab"
+    elif host:
+        source = host
+    else:
+        source = "Repository"
+    path = (parsed.path or "").rstrip("/").replace(".git", "")
+    parts = [p for p in path.split("/") if p]
+    if len(parts) >= 2:
+        owner, name = parts[-2], parts[-1]
+        display = f"{owner}/{name}"
+    elif parts:
+        owner, name = "", parts[-1]
+        display = name
+    else:
+        owner, name, display = "", "Unknown project", "Unknown project"
+    return owner, name, display, source
+
+
+def _infer_primary_stack(files: list[dict], repo_path: str) -> str:
+    extensions = {os.path.splitext(f["file"])[1].lower() for f in files}
+    content = ""
+    for candidate in ["requirements.txt", "pyproject.toml", "Pipfile"]:
+        candidate_path = os.path.join(repo_path, candidate)
+        if os.path.exists(candidate_path):
+            try:
+                with open(candidate_path, "r", encoding="utf-8", errors="ignore") as f:
+                    content += f.read().lower()
+            except Exception:
+                pass
+    if ".py" in extensions:
+        if "flask" in content:
+            return "Python · Flask"
+        if "fastapi" in content:
+            return "Python · FastAPI"
+        if "django" in content:
+            return "Python · Django"
+        return "Python"
+    if ".ts" in extensions:
+        return "TypeScript"
+    if ".js" in extensions:
+        return "JavaScript"
+    if ".go" in extensions:
+        return "Go"
+    if ".rb" in extensions:
+        return "Ruby"
+    if ".java" in extensions:
+        return "Java"
+    return "Multi-language"
+
+
+def _markdown_to_html(text: str) -> str:
+    if not text:
+        return ""
+
+    escaped = html.escape(text)
+    escaped = re.sub(r"```(\w*)\n([\s\S]*?)```", lambda m: f"<pre><code class=\"language-{m.group(1)}\">{m.group(2).strip()}</code></pre>", escaped)
+    escaped = re.sub(r"`([^`]+)`", r"<code>\1</code>", escaped)
+    escaped = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", escaped)
+    escaped = re.sub(r"__(.+?)__", r"<strong>\1</strong>", escaped)
+    escaped = re.sub(r"\*(.+?)\*", r"<em>\1</em>", escaped)
+    escaped = re.sub(r"_(.+?)_", r"<em>\1</em>", escaped)
+    escaped = re.sub(r"(?m)^###\s+(.+)$", r"<h3>\1</h3>", escaped)
+    escaped = re.sub(r"(?m)^##\s+(.+)$", r"<h2>\1</h2>", escaped)
+    escaped = re.sub(r"(?m)^#\s+(.+)$", r"<h1>\1</h1>", escaped)
+    escaped = re.sub(r"(?m)^>\s+(.+)$", r"<blockquote>\1</blockquote>", escaped)
+    escaped = re.sub(r"(?m)^\s*[-*+]\s+(.+)$", r"<li>\1</li>", escaped)
+    escaped = re.sub(r"(?s)(?:<li>.*?</li>\s*)+", lambda m: f"<ul>{m.group(0).strip()}</ul>", escaped)
+
+    parts = [p.strip() for p in re.split(r"\n\s*\n+", escaped) if p.strip()]
+    html_parts = []
+    for part in parts:
+        if part.startswith("<h1>") or part.startswith("<h2>") or part.startswith("<h3>") or part.startswith("<ul>") or part.startswith("<pre>") or part.startswith("<blockquote>"):
+            html_parts.append(part)
+        else:
+            paragraph = part.replace("\n", "<br/>")
+            html_parts.append("<p>" + paragraph + "</p>")
+
+    return "\n".join(html_parts)
+
+
 def _kickoff_with_retry(crew_factory, q, retries: int = 3) -> object:
     """Attempt to kickoff a crew (built via crew_factory) with retries and model fallbacks.
 
@@ -81,14 +176,17 @@ def _kickoff_with_retry(crew_factory, q, retries: int = 3) -> object:
     initial = os.environ.get("GROQ_MODEL", "groq/llama-3.3-70b-versatile")
     fallback_env = os.environ.get("GROQ_FALLBACK_MODELS", "groq/llama-3.3-32b,groq/llama-2-13b")
     candidates = [m.strip() for m in ([initial] + fallback_env.split(",")) if m.strip()]
+    # Use environment-configurable retry/backoff settings if provided
+    env_max_attempts = int(os.environ.get("GROQ_RETRY_MAX_ATTEMPTS", str(retries)))
+    base_delay = float(os.environ.get("GROQ_RETRY_BASE_DELAY", "2"))
+    max_delay = float(os.environ.get("GROQ_RETRY_MAX_DELAY", "120"))
 
+    temp_override = float(os.environ.get("GROQ_TEMPERATURE", "0.3"))
     for model in candidates:
-        delay = 8
-        temp_override = float(os.environ.get("GROQ_TEMPERATURE", "0.3"))
         crew = crew_factory(model, temp_override)
-        for attempt in range(1, retries + 1):
+        for attempt in range(1, env_max_attempts + 1):
             try:
-                _send(q, "progress", {"step": 6, "message": f"Using model {model} (attempt {attempt}/{retries})"})
+                _send(q, "progress", {"step": 6, "message": f"Using model {model} (attempt {attempt}/{env_max_attempts})"})
                 return crew.kickoff(), crew
             except Exception as exc:
                 # If the model is not available on the account, skip immediately to next candidate
@@ -96,19 +194,25 @@ def _kickoff_with_retry(crew_factory, q, retries: int = 3) -> object:
                     _send(q, "progress", {"step": 6, "message": f"⚠️ Model {model} not available or inaccessible. Switching to next fallback."})
                     break
 
-                if _is_rate_limit_error(exc) and attempt < retries:
-                    wait = delay
-                    match = re.search(r"try again in ([0-9]+(?:\.[0-9]+)?)s", str(exc), re.IGNORECASE)
+                # If we detected a server-suggested retry time, prefer it (plus small buffer)
+                match = re.search(r"try again in ([0-9]+(?:\.[0-9]+)?)s", str(exc), re.IGNORECASE)
+                if _is_rate_limit_error(exc) and attempt < env_max_attempts:
                     if match:
-                        wait = max(wait, float(match.group(1)) + 2)
-                    wait = min(wait, 120)
+                        suggested = min(max_delay, float(match.group(1)) + 2)
+                        wait = suggested
+                    else:
+                        # Exponential backoff with full jitter: cap = min(max_delay, base_delay * 2^(attempt-1))
+                        cap = min(max_delay, base_delay * (2 ** (attempt - 1)))
+                        wait = random.uniform(0, cap)
+
+                    wait = max(0.5, min(wait, max_delay))
                     _send(q, "progress", {
                         "step": 6,
-                        "message": f"⏳ Rate limit on model {model}, retrying in {int(wait)}s (attempt {attempt}/{retries})...",
+                        "message": f"⏳ Rate limit on model {model}, retrying in {int(wait)}s (attempt {attempt}/{env_max_attempts})...",
                     })
                     time.sleep(wait)
-                    delay = min(wait * 2, 120)
                     continue
+
                 # If it's a rate limit and we've exhausted attempts for this model, break to try next model
                 if _is_rate_limit_error(exc):
                     _send(q, "progress", {"step": 6, "message": f"⚠️ Switching to fallback model after rate limits on {model}."})
@@ -179,6 +283,21 @@ def run_analysis(job_id: str, repo_url: str):
             "structure": structure,
         })
 
+        owner, repo_name, repo_display, repo_source = _parse_repo_url(repo_url)
+        meta = {
+            "repo_name": repo_name or repo_display,
+            "repo_display": repo_display,
+            "repo_source": repo_source,
+            "repo_url": repo_url,
+            "primary_stack": _infer_primary_stack(files, repo_path),
+            "file_count": len(files),
+            "structure": structure,
+            "folder_count": len(structure),
+            "generated_date": _format_date(datetime.utcnow()),
+            "source_tooling": "CrewAI · Groq LLaMA 3.3",
+            "badges": ["Repository analysis", "Architecture", "Metrics"],
+        }
+
         formatted = format_files_for_prompt(files)
 
         _send(q, "progress", {"step": 3, "message": "🎯 Repo Manager: triaging files..."})
@@ -202,12 +321,7 @@ def run_analysis(job_id: str, repo_url: str):
             with open(debug_path, "w", encoding="utf-8") as f:
                 f.write(raw)
             sections = parse_sections(raw, [])
-            meta = {
-                "file_count": len(files),
-                "structure": structure,
-                "generated_date": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
-                "note": "Fallback summary generated locally (FORCE_LOCAL_FALLBACK)",
-            }
+            meta["note"] = "Fallback summary generated locally (FORCE_LOCAL_FALLBACK)"
             report_path = os.path.join("jobs", job_id, "report.md")
             with open(report_path, "w", encoding="utf-8") as f:
                 f.write(raw)
@@ -245,9 +359,17 @@ def run_analysis(job_id: str, repo_url: str):
             # minimal sections and meta
             sections = parse_sections(raw, [])
             meta = {
+                "repo_name": repo_name or repo_display,
+                "repo_display": repo_display,
+                "repo_source": repo_source,
+                "repo_url": repo_url,
+                "primary_stack": _infer_primary_stack(files, repo_path),
                 "file_count": len(files),
                 "structure": structure,
-                "generated_date": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+                "folder_count": len(structure),
+                "generated_date": _format_date(datetime.utcnow()),
+                "source_tooling": "CrewAI · Groq LLaMA 3.3",
+                "badges": ["Repository analysis", "Architecture", "Metrics"],
                 "note": "Fallback summary generated locally due to remote model errors",
             }
             report_path = os.path.join("jobs", job_id, "report.md")
@@ -302,15 +424,19 @@ def run_analysis(job_id: str, repo_url: str):
             f.write(raw)
 
         # Save lightweight metadata for export templates
-        meta_path = os.path.join("jobs", job_id, "meta.json")
-        meta = {
-            "file_count": len(files),
-            "structure": structure,
-            "generated_date": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
-        }
+        meta["file_count"] = len(files)
+        meta["structure"] = structure
+        meta["folder_count"] = len(structure)
         if meta_from_agent and isinstance(meta_from_agent, dict):
-            # merge agent-provided metadata (agent values take precedence)
             meta.update(meta_from_agent)
+        meta["generated_date"] = _format_date(datetime.utcnow())
+        meta.setdefault("repo_name", repo_name or meta.get("repo_display") or f"report-{job_id[:8]}")
+        meta.setdefault("repo_display", repo_display)
+        meta.setdefault("repo_source", repo_source)
+        meta.setdefault("repo_url", repo_url)
+        meta.setdefault("primary_stack", meta.get("primary_stack", "Code analysis"))
+        meta.setdefault("source_tooling", meta.get("source_tooling", "CrewAI · Groq LLaMA 3.3"))
+        meta.setdefault("badges", meta.get("badges", ["Repository analysis", "Architecture", "Metrics"]))
         try:
             with open(meta_path, "w", encoding="utf-8") as mf:
                 json.dump(meta, mf)
@@ -509,17 +635,21 @@ def export_html(job_id: str):
             meta = json.load(f)
 
     sections = parse_sections(raw)
-    # enrich meta for template
-    meta.setdefault("repo_name", meta.get("repo") or meta.get("repo_name") or f"report-{job_id[:8]}")
+    owner, repo_name, repo_display, repo_source = _parse_repo_url(meta.get("repo_url") or meta.get("repo") or "")
+    meta.setdefault("repo_name", repo_name or meta.get("repo") or repo_display or f"report-{job_id[:8]}")
+    meta.setdefault("repo_display", repo_display)
+    meta.setdefault("repo_source", repo_source or meta.get("repo_source", "GitHub"))
+    meta.setdefault("repo_url", meta.get("repo_url", meta.get("repo") or ""))
     meta.setdefault("file_count", meta.get("file_count", 0))
     meta.setdefault("structure", meta.get("structure", {}))
     meta.setdefault("folder_count", len(meta.get("structure", {})))
     meta.setdefault("primary_stack", meta.get("primary_stack", "Code analysis"))
-    meta.setdefault("source_tooling", meta.get("source_tooling", "RepoAnalyzer AI"))
-    meta.setdefault("repo_url", meta.get("repo_url", meta.get("repo") or ""))
-    meta.setdefault("badges", meta.get("badges", ["Code summary", "Repository analysis", "Architecture", "Metrics"]))
-    meta["generated_date"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    meta.setdefault("source_tooling", meta.get("source_tooling", "CrewAI · Groq LLaMA 3.3"))
+    meta.setdefault("generated_date", _format_date(datetime.utcnow()))
+    meta.setdefault("report_summary",
+                    f"Deep-dive technical narrative for {meta.get('repo_display', meta.get('repo_name', 'this repository'))} — {meta.get('primary_stack', 'code analysis')}.")
     meta["raw_preview"] = raw[:2000]
+    sections = {k: _markdown_to_html(v) for k, v in sections.items()}
 
     html = render_template("report_template.html", sections=sections, meta=meta)
     return Response(html, mimetype="text/html",
